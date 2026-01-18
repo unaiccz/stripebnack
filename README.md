@@ -1,3 +1,11 @@
+## URLs de éxito y cancelación
+
+En el backend, las URLs de éxito y cancelación están configuradas así:
+
+- success_url: http://localhost:3000/success
+- cancel_url: http://localhost:3000/cancel
+
+Si despliegas el frontend en producción, cambia estas URLs en `stripe.js` para que apunten a tu dominio real.
 # Stripe Backend para Render
 
 Este backend expone un endpoint para crear sesiones de pago de Stripe.

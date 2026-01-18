@@ -29,8 +29,8 @@ app.post('/create-checkout-session', async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: 'http://localhost:5173/?pago=exito',
-      cancel_url: 'http://localhost:5173/?pago=cancelado',
+      success_url: 'http://localhost:3000/success',
+      cancel_url: 'http://localhost:3000/cancel',
     });
     res.json({ sessionId: session.id, url: session.url });
   } catch (err) {
