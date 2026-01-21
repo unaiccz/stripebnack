@@ -1,39 +1,88 @@
-## URLs de éxito y cancelación
+# Backend - Stripe Payment Gateway
 
-En el backend, las URLs de éxito y cancelación están configuradas así:
+This backend handles Stripe payment processing for **event inscriptions ONLY**.
 
-- success_url: http://localhost:3000/success
-- cancel_url: http://localhost:3000/cancel
+**IMPORTANT:** Monthly membership fees (cuotas mensuales) are NOT processed through Stripe. They are automatically charged via SEPA direct debit from the family group's IBAN.
 
-Si despliegas el frontend en producción, cambia estas URLs en `stripe.js` para que apunten a tu dominio real.
-# Stripe Backend para Render
+## Setup
 
-Este backend expone un endpoint para crear sesiones de pago de Stripe.
+### 1. Install Dependencies
 
-## Despliegue en Render
-
-1. **Repositorio**: Sube solo la carpeta `backend` a tu repositorio (o usa la raíz si solo tienes el backend).
-2. **En Render**:
-	 - Crea un nuevo Web Service.
-	 - Selecciona tu repo y rama.
-	 - **Root Directory**: `backend`
-	 - **Build Command**: `npm install`
-	 - **Start Command**: `node stripe.js`
-	 - **Environment**: Node
-	 - Añade la variable de entorno:
-		 - KEY: `STRIPE_SECRET_KEY`
-		 - VALUE: tu clave secreta de Stripe
-
-## Código para usar variable de entorno
-
-En `stripe.js`, la clave secreta se toma de la variable de entorno:
-
-```js
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+```bash
+cd backend
+npm install express stripe cors dotenv
 ```
 
-Así nunca expones tu clave en el código.
+### 2. Create `.env` File
 
----
+Create a `backend/.env` file with your Stripe credentials:
 
-Cuando Render termine, tendrás una URL pública para tu backend. Úsala en tu frontend para crear sesiones de pago.
+```env
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+STRIPE_PORT=4242
+FRONTEND_URL=http://localhost:5173
+```
+
+### 3. Get Your Stripe Keys
+
+1. Go to https://dashboard.stripe.com/
+2. Get your **Secret Key** (starts with `sk_test_` for test mode)
+3. Set up a webhook endpoint to receive payment confirmations:
+   - Go to Developers > Webhooks
+   - Add endpoint: `http://localhost:4242/webhook`
+   - Select event: `checkout.session.completed`
+   - Copy the **Webhook Signing Secret** (starts with `whsec_`)
+
+### 4. Start the Backend
+
+```bash
+node stripe.js
+```
+
+The backend will run on http://localhost:4242
+
+## Payment Flow for Event Inscriptions
+
+### User Journey:
+
+1. **Member** clicks "Inscribirme Ahora" (Sign me up) on an event
+2. **System** creates a temporary inscription in the database
+3. **System** redirects member to Stripe's secure payment page
+4. **Member** completes payment with their credit card
+5. **Stripe** redirects to:
+   - **Success page** (`/success`) if payment succeeds
+   - **Event page** (`/eventos/:id`) with cancellation notice if payment is cancelled
+6. **Webhook** receives payment confirmation from Stripe
+7. **System** marks the inscription as paid (`pagado: true`)
+
+### Payment Cancellation:
+
+If the user cancels during payment:
+1. They are redirected back to the event page
+2. The temporary inscription is automatically deleted
+3. They can try again without duplicate inscriptions
+
+### Free Events:
+
+For events with `coste = 0` (free):
+- No payment is required
+- Inscription is created immediately
+- No Stripe redirect occurs
+
+## Important Notes
+
+- **Event inscriptions** = paid with Stripe (card payments)
+- **Monthly fees (cuotas)** = paid with SEPA direct debit (NOT Stripe)
+- All payments are in EUR (Euros)
+- Test mode uses `sk_test_` keys (no real charges)
+- Production mode uses `sk_live_` keys (real charges)
+- Inscriptions are created BEFORE payment to generate the session
+- If payment fails or is cancelled, the inscription is deleted
+
+## Security
+
+- Never commit your `.env` file
+- Keep your Secret Key and Webhook Secret private
+- Use test keys during development
+- Verify webhook signatures to prevent fraud
