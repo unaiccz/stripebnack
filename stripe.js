@@ -4,7 +4,6 @@ import 'dotenv/config';
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
-import supabase from './supabaseClient.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -72,20 +71,12 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
       const idSocioEvento = session.metadata.id_socio_evento;
       
       if (idSocioEvento) {
-        const { error } = await supabase
-          .from('socio_evento')
-          .update({ 
-            pagado: true, 
-            fecha_pago: new Date().toISOString(),
-            stripe_session_id: session.id
-          })
-          .eq('id_socio_evento', idSocioEvento);
-          
-        if (error) {
-          console.error('Error actualizando inscripción en Supabase:', error.message);
-        } else {
-          console.log('Inscripción marcada como pagada:', idSocioEvento);
-        }
+        // Log para debugging - el frontend se encargará de actualizar el estado
+        console.log('✅ Pago completado para inscripción:', idSocioEvento);
+        console.log('Session ID:', session.id);
+        
+        // En entornos de desarrollo, podrías hacer una llamada al frontend
+        // Pero en producción, es mejor que el frontend consulte el estado
       }
     }
   }
@@ -94,4 +85,4 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 });
 
 const PORT = process.env.STRIPE_PORT || 4242;
-app.listen(PORT, () => console.log(`Stripe backend listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Stripe backend listening on port ${PORT}`));
