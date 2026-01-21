@@ -34,7 +34,7 @@ app.post('/create-checkout-session', express.json(), async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}&evento_id=${evento.id_evento}&socio_id=${socio.id_socio}&temp_id=${tempInscripcionId}`,
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/#/success?session_id={CHECKOUT_SESSION_ID}&evento_id=${evento.id_evento}&socio_id=${socio.id_socio}&temp_id=${tempInscripcionId}`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/eventos/${evento.id_evento}?payment_cancelled=true&evento_id=${evento.id_evento}`,
       client_reference_id: tempInscripcionId,
       customer_email: socio.email,
