@@ -12,9 +12,12 @@ app.use(cors());
 
 // Endpoint para crear sesión de pago de INSCRIPCIONES (NO CUOTAS)
 app.post('/create-checkout-session', express.json(), async (req, res) => {
-  const { inscripcion, socio } = req.body;
+  const { evento, socio } = req.body;
   
   try {
+    // Generar un ID temporal para la inscripción
+    const tempInscripcionId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -22,24 +25,24 @@ app.post('/create-checkout-session', express.json(), async (req, res) => {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: inscripcion.evento.nombre_evento,
-              description: `Inscripción a evento - ${new Date(inscripcion.evento.fecha_evento).toLocaleDateString('es-ES')}`,
+              name: evento.nombre_evento,
+              description: `Inscripción a evento - ${new Date(evento.fecha_evento).toLocaleDateString('es-ES')}`,
             },
-            unit_amount: Math.round(inscripcion.evento.coste * 100), // Convertir a céntimos
+            unit_amount: Math.round(evento.coste * 100), // Convertir a céntimos
           },
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}&inscripcion_id=${inscripcion.id_socio_evento}`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/eventos/${inscripcion.id_evento}?payment_cancelled=true&inscripcion_id=${inscripcion.id_socio_evento}`,
-      client_reference_id: inscripcion.id_socio_evento.toString(),
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}&evento_id=${evento.id_evento}&socio_id=${socio.id_socio}&temp_id=${tempInscripcionId}`,
+      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/eventos/${evento.id_evento}?payment_cancelled=true&evento_id=${evento.id_evento}`,
+      client_reference_id: tempInscripcionId,
       customer_email: socio.email,
       metadata: {
         type: 'inscripcion',
-        id_socio_evento: inscripcion.id_socio_evento,
-        id_socio: inscripcion.id_socio,
-        id_evento: inscripcion.id_evento
+        id_socio: socio.id_socio,
+        id_evento: evento.id_evento,
+        temp_id: tempInscripcionId
       }
     });
     
