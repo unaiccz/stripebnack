@@ -1,3 +1,26 @@
+// Endpoint para obtener socios con teléfono para SMS
+app.get('/api/sms/socios', async (req, res) => {
+  try {
+    const { filtro } = req.query;
+    let query = supabase
+      .from('socio')
+      .select('id_socio, nombre, telefono, estado')
+      .neq('telefono', null)
+      .neq('telefono', '');
+
+    if (filtro === 'activos') {
+      query = query.eq('estado', 'Activo');
+    }
+
+    const { data, error } = await query.order('nombre');
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching SMS socios:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 // backend/stripe.js
 
 import 'dotenv/config';
