@@ -1,3 +1,16 @@
+
+import express from 'express';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const router = express.Router();
+
+const VONAGE_API_KEY = process.env.VONAGE_API_KEY || '6c4aa897';
+const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET || 'PsSjp3KtvhTNZo4w';
+const VONAGE_FROM = process.env.VONAGE_FROM || 'CasinoTauste';
+
 // Endpoint para enviar SMS individual
 router.post('/send-sms', async (req, res) => {
   const { to, message } = req.body;
@@ -26,17 +39,6 @@ router.post('/send-sms', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-import express from 'express';
-import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const router = express.Router();
-
-const VONAGE_API_KEY = process.env.VONAGE_API_KEY || '6c4aa897';
-const VONAGE_API_SECRET = process.env.VONAGE_API_SECRET || 'PsSjp3KtvhTNZo4w';
-const VONAGE_FROM = process.env.VONAGE_FROM || 'CasinoTauste';
 
 // Endpoint para envío masivo de SMS
 router.post('/send-bulk', async (req, res) => {
