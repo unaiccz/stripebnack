@@ -1,3 +1,7 @@
+// ...existing code...
+
+// (Coloca este endpoint después de la inicialización de app)
+
 // Endpoint para obtener socios con teléfono para SMS
 app.get('/api/sms/socios', async (req, res) => {
   try {
