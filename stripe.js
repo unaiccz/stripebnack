@@ -5,7 +5,7 @@ import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
 import { sendWhatsAppMessage, sendBulkWhatsAppMessages, formatWhatsAppNumber } from './twilio.js';
-import { createClient } from '@supabase/supabase-js';
+import supabase from './supabaseClient.js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -98,92 +98,23 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
 // WhatsApp Endpoints
 
-// Mock data for socios
-const mockSocios = [
-  { id_socio: 1, nombre: 'Juan', apellido1: 'García', apellido2: 'López', telefono: '+34600123456', estado: 'Activo' },
-  { id_socio: 2, nombre: 'María', apellido1: 'Rodríguez', apellido2: '', telefono: '+34600123457', estado: 'Activo' },
-  { id_socio: 3, nombre: 'Carlos', apellido1: 'Martínez', apellido2: 'Sánchez', telefono: '+34600123458', estado: 'Inactivo' },
-  { id_socio: 4, nombre: 'Ana', apellido1: 'López', apellido2: 'García', telefono: '+34600123459', estado: 'Activo' }
-];
-
+// WhatsApp Endpoints (temporarily disabled - now fetching directly from frontend)
+/*
 // Get socios with WhatsApp numbers
 app.get('/api/whatsapp/socios', async (req, res) => {
-  try {
-    const { filtro } = req.query;
-    
-    let filteredSocios = [...mockSocios];
-    
-    if (filtro === 'activos') {
-      filteredSocios = filteredSocios.filter(socio => socio.estado === 'Activo');
-    }
-
-    const formattedSocios = filteredSocios.map(socio => ({
-      id_socio: socio.id_socio,
-      nombre: `${socio.nombre} ${socio.apellido1} ${socio.apellido2 || ''}`,
-      telefono: socio.telefono,
-      estado: socio.estado,
-      whatsapp_number: formatWhatsAppNumber(socio.telefono)
-    }));
-
-    res.json(formattedSocios);
-  } catch (error) {
-    console.error('Error fetching socios:', error);
-    res.status(500).json({ error: error.message });
-  }
+  // ... existing code ...
 });
 
 // Send individual WhatsApp message
 app.post('/api/whatsapp/send', async (req, res) => {
-  try {
-    const { to, message, mediaUrl } = req.body;
-
-    if (!to || !message) {
-      return res.status(400).json({ error: 'Phone number and message are required' });
-    }
-
-    const formattedNumber = formatWhatsAppNumber(to);
-    const response = await sendWhatsAppMessage(formattedNumber, message, mediaUrl);
-
-    res.json({
-      success: true,
-      sid: response.sid,
-      status: response.status
-    });
-  } catch (error) {
-    console.error('Error sending WhatsApp message:', error);
-    res.status(500).json({ error: error.message });
-  }
+  // ... existing code ...
 });
 
 // Send bulk WhatsApp messages
 app.post('/api/whatsapp/bulk-send', async (req, res) => {
-  try {
-    const { recipients, messageTemplate, mediaUrl } = req.body;
-
-    if (!recipients || !messageTemplate) {
-      return res.status(400).json({ error: 'Recipients and message template are required' });
-    }
-
-    // Format phone numbers
-    const formattedRecipients = recipients.map(recipient => ({
-      ...recipient,
-      phone: formatWhatsAppNumber(recipient.telefono)
-    }));
-
-    const results = await sendBulkWhatsAppMessages(formattedRecipients, messageTemplate, mediaUrl);
-
-    res.json({
-      success: true,
-      total: results.length,
-      sent: results.filter(r => r.status === 'success').length,
-      failed: results.filter(r => r.status === 'failed').length,
-      results
-    });
-  } catch (error) {
-    console.error('Error sending bulk WhatsApp messages:', error);
-    res.status(500).json({ error: error.message });
-  }
+  // ... existing code ...
 });
+*/
 
 const PORT = process.env.STRIPE_PORT || 4242;
 app.listen(PORT, () => console.log(`✅ Stripe backend listening on port ${PORT}`));
