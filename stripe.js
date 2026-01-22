@@ -5,6 +5,7 @@ import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
 import { sendWhatsAppMessage, sendBulkWhatsAppMessages, formatWhatsAppNumber } from './twilio.js';
+import smsRouter from './sms.js';
 import supabase from './supabaseClient.js';
 
 const app = express();
@@ -16,8 +17,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 //   process.env.SUPABASE_SERVICE_ROLE_KEY
 // );
 
+
 app.use(cors());
 app.use(express.json());
+// Endpoint SMS Vonage
+app.use('/api/sms', smsRouter);
 
 // Endpoint para crear sesión de pago de INSCRIPCIONES (NO CUOTAS)
 app.post('/create-checkout-session', express.json(), async (req, res) => {
