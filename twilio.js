@@ -1,12 +1,12 @@
-// import twilio from 'twilio'
+import twilio from 'twilio'
 import dotenv from 'dotenv'
 
 dotenv.config()
 
-// const client = twilio(
-//   process.env.TWILIO_ACCOUNT_SID,
-//   process.env.TWILIO_AUTH_TOKEN
-// )
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+)
 
 const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886'
 
@@ -18,15 +18,22 @@ const TWILIO_WHATSAPP_NUMBER = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+
  * @returns {Promise<Object>} Twilio response
  */
 export const sendWhatsAppMessage = async (to, message, mediaUrl = null) => {
-  // Temporary mock implementation - replace with actual Twilio when credentials are confirmed
-  console.log('WhatsApp message would be sent to:', to)
-  console.log('Message:', message)
-  if (mediaUrl) console.log('Media URL:', mediaUrl)
-  
-  // Simulate successful response
-  return {
-    sid: 'SM' + Math.random().toString(36).substr(2, 32),
-    status: 'sent'
+  try {
+    const messageData = {
+      from: TWILIO_WHATSAPP_NUMBER,
+      to: to,
+      body: message
+    };
+    
+    if (mediaUrl) {
+      messageData.mediaUrl = [mediaUrl];
+    }
+    
+    const response = await client.messages.create(messageData);
+    return response;
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error);
+    throw error;
   }
 }
 
@@ -38,23 +45,38 @@ export const sendWhatsAppMessage = async (to, message, mediaUrl = null) => {
  * @returns {Promise<Array>} Array of results
  */
 export const sendBulkWhatsAppMessages = async (recipients, messageTemplate, mediaUrl = null) => {
-  // Temporary mock implementation
-  console.log('Bulk WhatsApp messages would be sent to:', recipients.length, 'recipients')
-  console.log('Template:', messageTemplate)
-  if (mediaUrl) console.log('Media URL:', mediaUrl)
-  
-  // Simulate results
-  const results = recipients.map(recipient => ({
-    phone: recipient.phone,
-    name: recipient.name,
-    status: 'success',
-    sid: 'SM' + Math.random().toString(36).substr(2, 32)
-  }))
-  
-  // Add small delay to simulate processing
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  return results
+  try {
+    const results = [];
+    
+    for (const recipient of recipients) {
+      try {
+        const personalizedMessage = messageTemplate.replace('{{name}}', recipient.name);
+        const response = await sendWhatsAppMessage(recipient.phone, personalizedMessage, mediaUrl);
+        
+        results.push({
+          phone: recipient.phone,
+          name: recipient.name,
+          status: 'success',
+          sid: response.sid
+        });
+      } catch (error) {
+        results.push({
+          phone: recipient.phone,
+          name: recipient.name,
+          status: 'failed',
+          error: error.message
+        });
+      }
+      
+      // Add small delay between messages to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return results;
+  } catch (error) {
+    console.error('Error sending bulk WhatsApp messages:', error);
+    throw error;
+  }
 }
 
 /**

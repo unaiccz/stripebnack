@@ -98,23 +98,93 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
 // WhatsApp Endpoints
 
-// WhatsApp Endpoints (temporarily disabled - now fetching directly from frontend)
-/*
+// WhatsApp Endpoints
+
 // Get socios with WhatsApp numbers
 app.get('/api/whatsapp/socios', async (req, res) => {
-  // ... existing code ...
+  try {
+    const { filtro } = req.query;
+    
+    let query = supabase
+      .from('socio')
+      .select('id_socio, nombre, telefono')
+      .neq('telefono', null)
+      .neq('telefono', '');
+
+    // Note: estado column doesn't exist in the database, so we'll return all records
+    // The frontend filter will still work for UI consistency
+
+    const { data, error } = await query.order('nombre');
+
+    if (error) throw error;
+
+    const formattedSocios = data.map(socio => ({
+      id_socio: socio.id_socio,
+      nombre: socio.nombre,
+      telefono: socio.telefono,
+      estado: 'Activo', // Default status
+      whatsapp_number: `whatsapp:+34${socio.telefono}`
+    }));
+
+    res.json(formattedSocios);
+  } catch (error) {
+    console.error('Error fetching socios:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Send individual WhatsApp message
 app.post('/api/whatsapp/send', async (req, res) => {
-  // ... existing code ...
+  try {
+    const { to, message, mediaUrl } = req.body;
+
+    if (!to || !message) {
+      return res.status(400).json({ error: 'Phone number and message are required' });
+    }
+
+    const formattedNumber = formatWhatsAppNumber(to);
+    const response = await sendWhatsAppMessage(formattedNumber, message, mediaUrl);
+
+    res.json({
+      success: true,
+      sid: response.sid,
+      status: response.status
+    });
+  } catch (error) {
+    console.error('Error sending WhatsApp message:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Send bulk WhatsApp messages
 app.post('/api/whatsapp/bulk-send', async (req, res) => {
-  // ... existing code ...
+  try {
+    const { recipients, messageTemplate, mediaUrl } = req.body;
+
+    if (!recipients || !messageTemplate) {
+      return res.status(400).json({ error: 'Recipients and message template are required' });
+    }
+
+    // Format phone numbers
+    const formattedRecipients = recipients.map(recipient => ({
+      ...recipient,
+      phone: formatWhatsAppNumber(recipient.telefono)
+    }));
+
+    const results = await sendBulkWhatsAppMessages(formattedRecipients, messageTemplate, mediaUrl);
+
+    res.json({
+      success: true,
+      total: results.length,
+      sent: results.filter(r => r.status === 'success').length,
+      failed: results.filter(r => r.status === 'failed').length,
+      results
+    });
+  } catch (error) {
+    console.error('Error sending bulk WhatsApp messages:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
-*/
 
 const PORT = process.env.STRIPE_PORT || 4242;
 app.listen(PORT, () => console.log(`✅ Stripe backend listening on port ${PORT}`));
