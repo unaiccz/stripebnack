@@ -4,11 +4,20 @@ import 'dotenv/config';
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
+import { sendWhatsAppMessage, sendBulkWhatsAppMessages, formatWhatsAppNumber } from './twilio.js';
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Supabase client for fetching socio data (temporarily disabled)
+// const supabase = createClient(
+//   process.env.SUPABASE_URL,
+//   process.env.SUPABASE_SERVICE_ROLE_KEY
+// );
+
 app.use(cors());
+app.use(express.json());
 
 // Endpoint para crear sesión de pago de INSCRIPCIONES (NO CUOTAS)
 app.post('/create-checkout-session', express.json(), async (req, res) => {
@@ -86,6 +95,95 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
   res.json({ received: true });
 });
+
+// WhatsApp Endpoints (temporarily disabled until Supabase configured)
+
+// // Get socios with WhatsApp numbers
+// app.get('/api/whatsapp/socios', async (req, res) => {
+//   try {
+//     const { filtro } = req.query;
+//     
+//     let query = supabase
+//       .from('socios')
+//       .select('id_socio, nombre, apellido1, apellido2, telefono, estado')
+//       .neq('telefono', null)
+//       .neq('telefono', '');
+//
+//     if (filtro === 'activos') {
+//       query = query.eq('estado', 'Activo');
+//     }
+//
+//     const { data, error } = await query.order('nombre');
+//
+//     if (error) throw error;
+//
+//     const formattedSocios = data.map(socio => ({
+//       id_socio: socio.id_socio,
+//       nombre: `${socio.nombre} ${socio.apellido1} ${socio.apellido2 || ''}`,
+//       telefono: socio.telefono,
+//       estado: socio.estado,
+//       whatsapp_number: formatWhatsAppNumber(socio.telefono)
+//     }));
+//
+//     res.json(formattedSocios);
+//   } catch (error) {
+//     console.error('Error fetching socios:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// // Send individual WhatsApp message
+// app.post('/api/whatsapp/send', async (req, res) => {
+//   try {
+//     const { to, message, mediaUrl } = req.body;
+//
+//     if (!to || !message) {
+//       return res.status(400).json({ error: 'Phone number and message are required' });
+//     }
+//
+//     const formattedNumber = formatWhatsAppNumber(to);
+//     const response = await sendWhatsAppMessage(formattedNumber, message, mediaUrl);
+//
+//     res.json({
+//       success: true,
+//       sid: response.sid,
+//       status: response.status
+//     });
+//   } catch (error) {
+//     console.error('Error sending WhatsApp message:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+//
+// // Send bulk WhatsApp messages
+// app.post('/api/whatsapp/bulk-send', async (req, res) => {
+//   try {
+//     const { recipients, messageTemplate, mediaUrl } = req.body;
+//
+//     if (!recipients || !messageTemplate) {
+//       return res.status(400).json({ error: 'Recipients and message template are required' });
+//     }
+//
+//     // Format phone numbers
+//     const formattedRecipients = recipients.map(recipient => ({
+//       ...recipient,
+//       phone: formatWhatsAppNumber(recipient.telefono)
+//     }));
+//
+//     const results = await sendBulkWhatsAppMessages(formattedRecipients, messageTemplate, mediaUrl);
+//
+//     res.json({
+//       success: true,
+//       total: results.length,
+//       sent: results.filter(r => r.status === 'success').length,
+//       failed: results.filter(r => r.status === 'failed').length,
+//       results
+//     });
+//   } catch (error) {
+//     console.error('Error sending bulk WhatsApp messages:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 const PORT = process.env.STRIPE_PORT || 4242;
 app.listen(PORT, () => console.log(`✅ Stripe backend listening on port ${PORT}`));
