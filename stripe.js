@@ -111,8 +111,8 @@ app.get('/api/whatsapp/socios', async (req, res) => {
       .neq('telefono', null)
       .neq('telefono', '');
 
-    // Note: estado column doesn't exist in the database, so we'll return all records
-    // The frontend filter will still work for UI consistency
+    // Note: estado column doesn't exist, so we return all records regardless of filter
+    // The frontend can still use the filter for UI purposes
 
     const { data, error } = await query.order('nombre');
 
@@ -122,7 +122,7 @@ app.get('/api/whatsapp/socios', async (req, res) => {
       id_socio: socio.id_socio,
       nombre: socio.nombre,
       telefono: socio.telefono,
-      estado: 'Activo', // Default status
+      estado: 'Activo', // Default status for display
       whatsapp_number: `whatsapp:+34${socio.telefono}`
     }));
 
