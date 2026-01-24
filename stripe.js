@@ -31,8 +31,7 @@ import 'dotenv/config';
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
-import { sendWhatsAppMessage, sendBulkWhatsAppMessages, formatWhatsAppNumber } from './twilio.js';
-import smsRouter from './sms.js';
+import { sendWhatsAppMessage, sendBulkWhatsAppMessages, sendSMS, sendBulkSMS, formatPhoneNumber } from './twilio.js';
 import supabase from './supabaseClient.js';
 
 const app = express();
@@ -47,17 +46,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors());
 app.use(express.json());
-// Endpoint SMS Vonage
-app.use('/api/sms', smsRouter);
 
 // Endpoint para crear sesión de pago de INSCRIPCIONES (NO CUOTAS)
 app.post('/create-checkout-session', express.json(), async (req, res) => {
   const { evento, socio } = req.body;
-  
+
   try {
     // Generar un ID temporal para la inscripción
     const tempInscripcionId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -85,7 +82,7 @@ app.post('/create-checkout-session', express.json(), async (req, res) => {
         temp_id: tempInscripcionId
       }
     });
-    
+
     res.json({ sessionId: session.id, url: session.url });
   } catch (err) {
     console.error('Error creating checkout session:', err);
@@ -97,7 +94,7 @@ app.post('/create-checkout-session', express.json(), async (req, res) => {
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
-  
+
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
@@ -108,16 +105,16 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
   // Procesar pago completado
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    
+
     // Verificar que es una inscripción (NO cuota)
     if (session.metadata?.type === 'inscripcion') {
       const idSocioEvento = session.metadata.id_socio_evento;
-      
+
       if (idSocioEvento) {
         // Log para debugging - el frontend se encargará de actualizar el estado
         console.log('✅ Pago completado para inscripción:', idSocioEvento);
         console.log('Session ID:', session.id);
-        
+
         // En entornos de desarrollo, podrías hacer una llamada al frontend
         // Pero en producción, es mejor que el frontend consulte el estado
       }
@@ -127,39 +124,70 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
   res.json({ received: true });
 });
 
-// WhatsApp Endpoints
+// SMS Endpoints
+
+// Get socios with phone for SMS (already exists above, but let's ensure it's clean)
+// (The previous app.get('/api/sms/socios') is already at the top of the file)
+
+// Send individual SMS
+app.post('/api/sms/send', async (req, res) => {
+  try {
+    const { to, message } = req.body;
+    if (!to || !message) return res.status(400).json({ error: 'Faltan parámetros' });
+    const response = await sendSMS(to, message);
+    res.json({ success: true, sid: response.sid });
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send bulk SMS
+app.post('/api/sms/bulk-send', async (req, res) => {
+  try {
+    const { recipients, messageTemplate } = req.body;
+    if (!recipients || !messageTemplate) return res.status(400).json({ error: 'Faltan parámetros' });
+    const results = await sendBulkSMS(recipients, messageTemplate);
+    res.json({
+      success: true,
+      total: results.length,
+      sent: results.filter(r => r.status === 'success').length,
+      failed: results.filter(r => r.status === 'failed').length,
+      results
+    });
+  } catch (error) {
+    console.error('Error sending bulk SMS:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // WhatsApp Endpoints
 
-// Get socios with WhatsApp numbers
+// Get socios for WhatsApp (already using supabase)
 app.get('/api/whatsapp/socios', async (req, res) => {
   try {
     const { filtro } = req.query;
-    
     let query = supabase
       .from('socio')
-      .select('id_socio, nombre, telefono')
+      .select('id_socio, nombre, telefono, estado')
       .neq('telefono', null)
       .neq('telefono', '');
 
-    // Note: estado column doesn't exist, so we return all records regardless of filter
-    // The frontend can still use the filter for UI purposes
+    if (filtro === 'activos') {
+      query = query.eq('estado', 'Activo');
+    }
 
     const { data, error } = await query.order('nombre');
-
     if (error) throw error;
 
     const formattedSocios = data.map(socio => ({
-      id_socio: socio.id_socio,
-      nombre: socio.nombre,
-      telefono: socio.telefono,
-      estado: 'Activo', // Default status for display
-      whatsapp_number: `whatsapp:+34${socio.telefono}`
+      ...socio,
+      whatsapp_number: formatPhoneNumber(socio.telefono, true)
     }));
 
     res.json(formattedSocios);
   } catch (error) {
-    console.error('Error fetching socios:', error);
+    console.error('Error fetching WhatsApp socios:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -168,19 +196,9 @@ app.get('/api/whatsapp/socios', async (req, res) => {
 app.post('/api/whatsapp/send', async (req, res) => {
   try {
     const { to, message, mediaUrl } = req.body;
-
-    if (!to || !message) {
-      return res.status(400).json({ error: 'Phone number and message are required' });
-    }
-
-    const formattedNumber = formatWhatsAppNumber(to);
-    const response = await sendWhatsAppMessage(formattedNumber, message, mediaUrl);
-
-    res.json({
-      success: true,
-      sid: response.sid,
-      status: response.status
-    });
+    if (!to || !message) return res.status(400).json({ error: 'Faltan parámetros' });
+    const response = await sendWhatsAppMessage(to, message, mediaUrl);
+    res.json({ success: true, sid: response.sid, status: response.status });
   } catch (error) {
     console.error('Error sending WhatsApp message:', error);
     res.status(500).json({ error: error.message });
