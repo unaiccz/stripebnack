@@ -1,32 +1,3 @@
-// ...existing code...
-
-// (Coloca este endpoint después de la inicialización de app)
-
-// Endpoint para obtener socios con teléfono para SMS
-app.get('/api/sms/socios', async (req, res) => {
-  try {
-    const { filtro } = req.query;
-    let query = supabase
-      .from('socio')
-      .select('id_socio, nombre, telefono, estado')
-      .neq('telefono', null)
-      .neq('telefono', '');
-
-    if (filtro === 'activos') {
-      query = query.eq('estado', 'Activo');
-    }
-
-    const { data, error } = await query.order('nombre');
-    if (error) throw error;
-
-    res.json(data);
-  } catch (error) {
-    console.error('Error fetching SMS socios:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-// backend/stripe.js
-
 import 'dotenv/config';
 import express from 'express';
 import Stripe from 'stripe';
@@ -126,8 +97,29 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
 // SMS Endpoints
 
-// Get socios with phone for SMS (already exists above, but let's ensure it's clean)
-// (The previous app.get('/api/sms/socios') is already at the top of the file)
+// Endpoint para obtener socios con teléfono para SMS
+app.get('/api/sms/socios', async (req, res) => {
+  try {
+    const { filtro } = req.query;
+    let query = supabase
+      .from('socio')
+      .select('id_socio, nombre, telefono, estado')
+      .neq('telefono', null)
+      .neq('telefono', '');
+
+    if (filtro === 'activos') {
+      query = query.eq('estado', 'Activo');
+    }
+
+    const { data, error } = await query.order('nombre');
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching SMS socios:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Send individual SMS
 app.post('/api/sms/send', async (req, res) => {
@@ -217,7 +209,7 @@ app.post('/api/whatsapp/bulk-send', async (req, res) => {
     // Format phone numbers
     const formattedRecipients = recipients.map(recipient => ({
       ...recipient,
-      phone: formatWhatsAppNumber(recipient.telefono)
+      phone: formatPhoneNumber(recipient.telefono, true)
     }));
 
     const results = await sendBulkWhatsAppMessages(formattedRecipients, messageTemplate, mediaUrl);
